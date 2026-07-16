@@ -1,0 +1,38 @@
+name: wallet-service-test
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: wallet_service_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - type: bind
+        source: ./migrations/001_create_wallet_table.up.sql
+        target: /docker-entrypoint-initdb.d/001_create_wallet_table.sql
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d wallet_service_test"
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: tester
+    environment:
+      TEST_DATABASE_URL: postgres://postgres:postgres@postgres-test:5432/wallet_service_test?sslmode=disable
+    depends_on:
+      postgres-test:
+        condition: service_healthy
